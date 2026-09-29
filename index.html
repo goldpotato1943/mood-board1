@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>우리 반 마음 게시판</title>
+<meta name="description" content="오늘 내 마음을 고르고, 친구들의 마음에 공감하는 우리 반 감정 게시판">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: "마음 날씨" strip on top → write panel (left) + class board (right); stacks to one column on phones */
+:root{
+  --bg:#f5f3fb; --surface:#ffffff; --sunk:#eeebf6; --ink:#2b2740; --muted:#6c6784; --line:#dcd7ea;
+  --accent:#6a5acd; --accent-ink:#ffffff;
+  --joy:#ffcf4a; --joy-s:#fff5d6; --calm:#5cc99a; --calm-s:#e3f7ee; --sad:#5b9bf0; --sad-s:#e3eeff;
+  --angry:#f26d6d; --angry-s:#ffe6e6; --worry:#a57ee8; --worry-s:#f1e9ff; --etc:#f0a35e; --etc-s:#fff0e2;
+  --f-display:"Jua",system-ui,sans-serif; --f-body:"Gowun Dodum",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#17151f; --surface:#221f2e; --sunk:#1c1a26; --ink:#eeeaf8; --muted:#a39dbb; --line:#363149;
+  --accent:#9d8ff0; --accent-ink:#17151f;
+  --joy-s:#3a321a; --calm-s:#183329; --sad-s:#1a2a44; --angry-s:#3d1f22; --worry-s:#2c2242; --etc-s:#3a2a1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17151f; --surface:#221f2e; --sunk:#1c1a26; --ink:#eeeaf8; --muted:#a39dbb; --line:#363149;
+  --accent:#9d8ff0; --accent-ink:#17151f;
+  --joy-s:#3a321a; --calm-s:#183329; --sad-s:#1a2a44; --angry-s:#3d1f22; --worry-s:#2c2242; --etc-s:#3a2a1a; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+[hidden]{display:none!important}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.eyebrow{font-family:var(--f-display);color:var(--accent);letter-spacing:.05em;font-size:.95rem}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(1.9rem,5vw,2.6rem);margin:0;line-height:1.1;text-wrap:balance}
+.hright{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.date{font-family:var(--f-display);font-size:1rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 10px}
+.mode{font-size:.8rem;color:var(--muted);border:1px dashed var(--line);border-radius:999px;padding:4px 10px}
+button{font:inherit;color:inherit}
+.btn{font-family:var(--f-display);font-size:1rem;border:0;border-radius:12px;padding:10px 18px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* weather strip */
+.weather{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:18px;align-items:center}
+.weather .big{display:flex;align-items:center;gap:14px;min-width:0}
+.weather .face{font-size:3rem;line-height:1}
+.weather .big b{font-family:var(--f-display);font-weight:400;font-size:1.35rem;display:block}
+.weather .big span{color:var(--muted);font-size:.9rem}
+.bar{display:flex;height:22px;border-radius:999px;overflow:hidden;background:var(--sunk)}
+.bar i{display:block;height:100%;transition:width .4s}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:.85rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend em{width:10px;height:10px;border-radius:3px;display:inline-block}
+@media (max-width:700px){.weather{grid-template-columns:1fr}}
+
+.main{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:1fr}}
+
+/* write panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:16px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:860px){.panel{position:static}}
+.panel h2,.board-head h2{font-family:var(--f-display);font-weight:400;font-size:1.3rem;margin:0}
+.step{display:flex;flex-direction:column;gap:8px}
+.step label,.step .lbl{font-family:var(--f-display);font-size:1rem}
+.step .lbl small,.step label small{font-family:var(--f-body);color:var(--muted);font-size:.8rem;margin-left:4px}
+input[type=text],textarea{font:inherit;width:100%;border:1px solid var(--line);background:var(--sunk);color:var(--ink);border-radius:10px;padding:10px 12px}
+textarea{resize:vertical;min-height:76px}
+.fam{display:flex;flex-direction:column;gap:6px}
+.fam-name{font-size:.8rem;color:var(--muted);letter-spacing:.04em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px 5px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:.95rem}
+.chip .e{font-size:1.15rem;line-height:1}
+.chip[aria-pressed="true"]{border-color:var(--c);background:var(--cs);font-weight:700;box-shadow:0 0 0 2px var(--c) inset}
+.levels{display:flex;gap:6px}
+.lv{flex:1;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 0;cursor:pointer;font-size:.8rem;display:flex;flex-direction:column;align-items:center;gap:4px}
+.lv i{display:block;border-radius:50%;background:var(--muted)}
+.lv[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.lv[aria-pressed="true"] i{background:var(--accent)}
+.check{display:flex;align-items:center;gap:8px;font-size:.92rem;color:var(--muted)}
+.counter{align-self:flex-end;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.help{font-size:.85rem;color:var(--muted);background:var(--sunk);border-radius:10px;padding:10px 12px;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-family:var(--f-display);z-index:9}
+
+/* board */
+.board-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters .chip{font-size:.85rem;padding:4px 10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+.card{background:var(--cs);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card .top{display:flex;align-items:center;gap:10px}
+.card .e{font-size:2rem;line-height:1}
+.card .emo{font-family:var(--f-display);font-size:1.2rem;line-height:1.1;word-break:keep-all}
+.card .who{font-size:.82rem;color:var(--muted)}
+.dots{display:flex;gap:3px;margin-left:auto;flex-shrink:0}
+.card .top>div{min-width:0}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--c)}
+.card p{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.card .foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;font-size:.8rem;color:var(--muted)}
+.like{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer;font-size:.85rem}
+.like[aria-pressed="true"]{border-color:var(--angry);color:var(--angry)}
+.hide{border:0;background:none;color:var(--angry);cursor:pointer;font-size:.8rem;text-decoration:underline}
+.empty{border:2px dashed var(--line);border-radius:16px;padding:28px 18px;text-align:center;color:var(--muted);margin-top:12px}
+.empty b{display:block;font-family:var(--f-display);font-weight:400;font-size:1.2rem;color:var(--ink);margin-bottom:4px}
+.teacher{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.teacher input{width:110px}
+footer{font-size:.8rem;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow" id="cls">우리 반</div>
+      <h1>우리 반 마음 게시판</h1>
+    </div>
+    <div class="hright">
+      <span class="mode" id="mode">한 기기 모드</span>
+      <input class="date" type="date" id="date" aria-label="날짜 선택">
+    </div>
+  </header>
+
+  <section class="weather" aria-label="오늘의 마음 날씨">
+    <div class="big"><div class="face" id="wFace">🌤️</div><div><b id="wTitle">오늘의 마음 날씨</b><span id="wSub">아직 마음을 남긴 친구가 없어요</span></div></div>
+    <div><div class="bar" id="wBar"></div><div class="legend" id="wLegend"></div></div>
+  </section>
+
+  <div class="main">
+    <form class="panel" id="form" autocomplete="off">
+      <h2>지금 내 마음은?</h2>
+      <div class="step">
+        <label for="name">이름이나 별명 <small>최대 10자</small></label>
+        <input type="text" id="name" maxlength="10" placeholder="예: 하늘">
+        <span class="check"><input type="checkbox" id="anon"><label for="anon" style="font-family:var(--f-body);font-size:.92rem">이름 숨기고 올리기</label></span>
+      </div>
+      <div class="step">
+        <span class="lbl">감정 고르기 <small>가장 가까운 마음 하나</small></span>
+        <div id="picker" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <div class="step">
+        <span class="lbl">얼마나 느끼나요?</span>
+        <div class="levels" id="levels"></div>
+      </div>
+      <div class="step">
+        <label for="reason">왜 그런 마음이 들었나요? <small>선택</small></label>
+        <textarea id="reason" maxlength="120" placeholder="예: 체육 시간에 친구들이랑 이어달리기에서 이겨서 뿌듯했어요."></textarea>
+        <span class="counter" id="count">0 / 120</span>
+      </div>
+      <button class="btn" type="submit" id="submit" disabled>마음 올리기</button>
+      <p class="help" id="hint">감정을 먼저 골라 주세요.</p>
+    </form>
+
+    <section aria-label="친구들의 마음">
+      <div class="board-head">
+        <h2 id="boardTitle">친구들의 마음</h2>
+        <div class="filters" id="filters"></div>
+      </div>
+      <div class="cards" id="cards"></div>
+      <div class="empty" id="empty"><b>아직 올라온 마음이 없어요</b>왼쪽에서 오늘의 마음을 골라 첫 번째로 올려 보세요.</div>
+    </section>
+  </div>
+
+  <details>
+    <summary style="cursor:pointer;color:var(--muted);font-size:.9rem">선생님 모드</summary>
+    <div class="teacher" style="margin-top:8px">
+      <input type="password" id="pin" placeholder="비밀번호" aria-label="선생님 비밀번호">
+      <button class="btn ghost" type="button" id="pinBtn">켜기</button>
+      <span id="pinMsg">켜면 카드마다 '숨기기' 버튼이 나타나요.</span>
+    </div>
+  </details>
+  <footer>친구의 마음은 소중해요. 놀리지 않고, 따뜻하게 공감해 주세요.</footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script>
+(function(){
+const CFG = Object.assign({className:"우리 반",teacherPin:"1234",sheetUrl:""}, window.MOOD_CONFIG||{});
+const FAMS = [
+  {key:"joy",  name:"기쁨", face:"☀️", sky:"맑음",       words:[["기뻐요","😄"],["신나요","🤩"],["뿌듯해요","😎"],["설레요","🥰"],["고마워요","🤗"],["행복해요","☺️"]]},
+  {key:"calm", name:"편안", face:"🌤️", sky:"구름 조금",  words:[["편안해요","😌"],["차분해요","🙂"],["든든해요","😊"]]},
+  {key:"etc",  name:"그 밖의 마음", face:"⛅", sky:"구름 많음", words:[["피곤해요","😪"],["지루해요","🥱"],["부끄러워요","😳"],["헷갈려요","😵‍💫"]]},
+  {key:"worry",name:"걱정", face:"🌫️", sky:"안개",       words:[["걱정돼요","😟"],["불안해요","😰"],["무서워요","😨"],["긴장돼요","😬"]]},
+  {key:"sad",  name:"슬픔", face:"🌧️", sky:"비",         words:[["슬퍼요","😢"],["서운해요","🥺"],["외로워요","😔"],["실망했어요","😞"]]},
+  {key:"angry",name:"화남", face:"⛈️", sky:"천둥번개",   words:[["화나요","😠"],["억울해요","😤"],["짜증나요","😒"]]}
+];
+const FAM = Object.fromEntries(FAMS.map(f=>[f.key,f]));
+const EMOJI = {}; FAMS.forEach(f=>f.words.forEach(([w,e])=>EMOJI[w]={e,fam:f.key}));
+const LEVELS = ["조금","약간","보통","많이","아주 많이"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+
+let state={date:today(),entries:[],pick:null,level:3,filter:"all",teacher:false};
+let liked=new Set(lsGet("mood-liked",[]));
+
+/* ---------- storage: local (one device) ---------- */
+const LocalStore = {
+  label:"한 기기 모드",
+  _all(){return lsGet("mood-entries",[])},
+  _save(a){lsSet("mood-entries",a)},
+  subscribe(date,cb){
+    const emit=()=>cb(this._all().filter(x=>x.date===date&&!x.hidden));
+    emit(); const h=e=>{if(e.key==="mood-entries")emit()}; window.addEventListener("storage",h);
+    this._emit=emit; return ()=>window.removeEventListener("storage",h);
+  },
+  async add(x){const a=this._all();a.push({...x,id:Math.random().toString(36).slice(2)});this._save(a);this._emit&&this._emit()},
+  async like(id,delta){const a=this._all();const it=a.find(x=>x.id===id);if(it){it.likes=Math.max(0,(it.likes||0)+delta);this._save(a);this._emit&&this._emit()}},
+  async hide(id){const a=this._all();const it=a.find(x=>x.id===id);if(it){it.hidden=true;this._save(a);this._emit&&this._emit()}},
+  async checkPin(p){return p===String(CFG.teacherPin)}
+};
+
+/* ---------- storage: Google Sheets via Apps Script (shared across devices) ---------- */
+function makeSheetStore(url){
+  let pin="", timer=null, refresh=null;
+  const post=async body=>{
+    // text/plain body keeps this a "simple" request, so Apps Script needs no CORS preflight
+    const r=await fetch(url,{method:"POST",body:JSON.stringify(body)});
+    const j=await r.json(); if(!j.ok) throw new Error(j.error||"요청 실패"); return j;
+  };
+  return {
+    label:"함께 쓰기 모드",
+    subscribe(date,cb){
+      let alive=true;
+      refresh=async()=>{
+        try{const r=await fetch(url+"?action=list&date="+encodeURIComponent(date));const j=await r.json();
+          if(alive&&j.ok) cb(j.items.map(x=>({...x,level:+x.level,likes:+x.likes||0,createdAt:+x.createdAt,anon:x.anon===true||x.anon==="TRUE"||x.anon==="true"})));}
+        catch(err){console.error(err);toast("게시판을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.")}
+      };
+      refresh(); timer=setInterval(()=>{if(!document.hidden)refresh()},15000);
+      return ()=>{alive=false;clearInterval(timer)};
+    },
+    async add(x){await post({action:"add",entry:x});refresh&&refresh()},
+    async like(id,delta){await post({action:"like",id,delta});refresh&&refresh()},
+    async hide(id){await post({action:"hide",id,pin});refresh&&refresh()},
+    async checkPin(p){try{await post({action:"checkPin",pin:p});pin=p;return true}catch(e){return false}}
+  };
+}
+
+let store=LocalStore, unsub=null;
+function watch(){ if(unsub) unsub(); unsub=store.subscribe(state.date,list=>{state.entries=list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));render()}); }
+
+/* ---------- UI: picker ---------- */
+function buildPicker(){
+  $("picker").innerHTML=FAMS.map(f=>`<div class="fam"><span class="fam-name">${f.name}</span><div class="chips">${
+    f.words.map(([w,e])=>`<button type="button" class="chip" data-w="${w}" aria-pressed="false" style="--c:var(--${f.key});--cs:var(--${f.key}-s)"><span class="e" aria-hidden="true">${e}</span>${w}</button>`).join("")}</div></div>`).join("");
+  $("picker").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;state.pick=b.dataset.w;
+    $("picker").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));updateForm()});
+  $("levels").innerHTML=LEVELS.map((l,i)=>`<button type="button" class="lv" data-l="${i+1}" aria-pressed="${i+1===state.level}"><i style="width:${6+i*3}px;height:${6+i*3}px"></i>${l}</button>`).join("");
+  $("levels").addEventListener("click",e=>{const b=e.target.closest(".lv");if(!b)return;state.level=+b.dataset.l;
+    $("levels").querySelectorAll(".lv").forEach(c=>c.setAttribute("aria-pressed",c===b))});
+  $("filters").innerHTML=[`<button type="button" class="chip" data-f="all" aria-pressed="true" style="--c:var(--accent);--cs:var(--sunk)">전체</button>`]
+    .concat(FAMS.map(f=>`<button type="button" class="chip" data-f="${f.key}" aria-pressed="false" style="--c:var(--${f.key});--cs:var(--${f.key}-s)">${f.name}</button>`)).join("");
+  $("filters").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;state.filter=b.dataset.f;
+    $("filters").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));render()});
+}
+function updateForm(){
+  const name=$("name").value.trim(), ok=!!state.pick && (name||$("anon").checked);
+  $("submit").disabled=!ok;
+  $("hint").textContent=!state.pick?"감정을 먼저 골라 주세요.":!(name||$("anon").checked)?"이름이나 별명을 적거나, '이름 숨기기'를 선택해 주세요.":`'${state.pick}'(${LEVELS[state.level-1]}) 마음을 올릴 준비가 됐어요.`;
+}
+
+/* ---------- UI: render ---------- */
+function timeLabel(ms){if(!ms)return"";const d=new Date(ms);return d.toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"})}
+function render(){
+  const all=state.entries, n=all.length;
+  const counts=Object.fromEntries(FAMS.map(f=>[f.key,0])); all.forEach(x=>counts[x.family]=(counts[x.family]||0)+1);
+  const isToday=state.date===today();
+  const dLabel=isToday?"오늘":new Date(state.date+"T00:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric"});
+  if(!n){$("wFace").textContent="🌤️";$("wTitle").textContent=`${dLabel}의 마음 날씨`;$("wSub").textContent="아직 마음을 남긴 친구가 없어요";$("wBar").innerHTML="";$("wLegend").innerHTML="";}
+  else{
+    const top=FAMS.slice().sort((a,b)=>counts[b.key]-counts[a.key])[0];
+    $("wFace").textContent=top.face;$("wTitle").textContent=`${dLabel} 우리 반은 '${top.sky}'`;
+    $("wSub").textContent=`${n}명이 마음을 남겼어요 · ${top.name} 마음이 가장 많아요`;
+    $("wBar").innerHTML=FAMS.filter(f=>counts[f.key]).map(f=>`<i style="width:${counts[f.key]/n*100}%;background:var(--${f.key})" title="${f.name} ${counts[f.key]}명"></i>`).join("");
+    $("wLegend").innerHTML=FAMS.map(f=>`<span><em style="background:var(--${f.key})"></em>${f.name} ${counts[f.key]}</span>`).join("");
+  }
+  $("boardTitle").textContent=`${dLabel} 친구들의 마음 (${n})`;
+  const list=all.filter(x=>state.filter==="all"||x.family===state.filter);
+  $("empty").hidden=list.length>0;
+  $("empty").innerHTML=n? "<b>이 감정을 고른 친구는 아직 없어요</b>다른 감정 버튼을 눌러 보세요." : (isToday?"<b>아직 올라온 마음이 없어요</b>왼쪽에서 오늘의 마음을 골라 첫 번째로 올려 보세요.":"<b>이 날은 올라온 마음이 없어요</b>다른 날짜를 골라 보세요.");
+  $("cards").innerHTML=list.map(x=>{
+    const f=FAM[x.family]||FAM.etc, em=(EMOJI[x.emotion]||{}).e||"🙂", on=liked.has(x.id);
+    return `<article class="card" style="--c:var(--${f.key});--cs:var(--${f.key}-s)">
+      <div class="top"><span class="e" aria-hidden="true">${em}</span><div><div class="emo">${esc(x.emotion)}</div><div class="who">${x.anon?"이름 숨김":esc(x.name)} · ${LEVELS[(x.level||3)-1]}</div></div>
+      <div class="dots" aria-label="강도 ${x.level}/5">${[1,2,3,4,5].map(i=>`<i class="${i<=x.level?"on":""}"></i>`).join("")}</div></div>
+      ${x.reason?`<p>${esc(x.reason)}</p>`:""}
+      <div class="foot"><span>${timeLabel(x.createdAt)}</span><span style="display:flex;gap:8px;align-items:center">
+      ${state.teacher?`<button class="hide" type="button" data-hide="${x.id}">숨기기</button>`:""}
+      <button class="like" type="button" data-like="${x.id}" aria-pressed="${on}">${on?"♥":"♡"} 공감 ${x.likes||0}</button></span></div></article>`;
+  }).join("");
+}
+
+/* ---------- events ---------- */
+$("cards").addEventListener("click",async e=>{
+  const l=e.target.closest("[data-like]"), h=e.target.closest("[data-hide]");
+  if(l){const id=l.dataset.like,on=liked.has(id);on?liked.delete(id):liked.add(id);lsSet("mood-liked",[...liked]);
+    try{await store.like(id,on?-1:1)}catch(err){toast("공감을 저장하지 못했어요.")} render();}
+  if(h){try{await store.hide(h.dataset.hide);toast("카드를 숨겼어요.")}catch(err){toast("숨기지 못했어요.")}}
+});
+$("name").addEventListener("input",updateForm);$("anon").addEventListener("change",updateForm);
+$("reason").addEventListener("input",()=>$("count").textContent=`${$("reason").value.length} / 120`);
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault(); if($("submit").disabled)return;
+  const fam=EMOJI[state.pick].fam;
+  const entry={date:today(),emotion:state.pick,family:fam,level:state.level,reason:$("reason").value.trim().slice(0,120),
+    name:$("anon").checked?"":$("name").value.trim().slice(0,10),anon:$("anon").checked,likes:0,hidden:false,createdAt:Date.now()};
+  $("submit").disabled=true;
+  try{await store.add(entry);toast("마음을 올렸어요!");
+    $("reason").value="";$("count").textContent="0 / 120";state.pick=null;
+    $("picker").querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+    if(state.date!==today()){state.date=today();$("date").value=state.date;watch();}
+  }catch(err){console.error(err);toast("올리지 못했어요. 인터넷 연결을 확인해 주세요.")}
+  updateForm();
+});
+$("date").addEventListener("change",()=>{state.date=$("date").value||today();watch()});
+$("pinBtn").addEventListener("click",async()=>{
+  if(state.teacher){state.teacher=false;$("pinBtn").textContent="켜기";$("pinMsg").textContent="선생님 모드를 껐어요.";render();return}
+  $("pinMsg").textContent="확인하고 있어요…";
+  if(await store.checkPin($("pin").value)){state.teacher=true;$("pin").value="";$("pinBtn").textContent="끄기";$("pinMsg").textContent="선생님 모드가 켜졌어요. 카드의 '숨기기'로 정리할 수 있어요.";render()}
+  else $("pinMsg").textContent="비밀번호가 맞지 않아요.";
+});
+let tt;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2200)}
+
+/* ---------- start ---------- */
+$("cls").textContent=CFG.className; document.title=`${CFG.className} 마음 게시판`;
+$("date").value=state.date; $("date").max=today();
+buildPicker(); updateForm();
+(async()=>{
+  if(CFG.sheetUrl) store=makeSheetStore(CFG.sheetUrl);
+  $("mode").textContent=store.label;
+  $("mode").title=store===LocalStore?"이 기기에만 저장돼요. 여러 기기에서 함께 쓰려면 config.js에 구글 시트 주소를 넣으세요.":"구글 시트에 저장되고, 15초마다 새 글을 불러와요.";
+  watch();
+})();
+})();
+</script>
+</body>
+</html>
